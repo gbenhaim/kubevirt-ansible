@@ -1,0 +1,6 @@
+docker://registry.fedoraproject.org/f26/etcd:latest
+docker://openshift/origin:v3.7.0
+docker://openshift/node:v3.7.0
+docker://openshift/openvswitch:v3.7.0
+docker://quay.io/coreos/etcd:latest
+docker://ansibleplaybookbundle/origin-ansible-service-broker:latest

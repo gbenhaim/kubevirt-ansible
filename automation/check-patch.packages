@@ -1,3 +1,5 @@
 lago
 ansible-2.4.2.0-2.el7
 origin-clients
+skopeo
+docker

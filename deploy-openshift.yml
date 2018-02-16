@@ -14,6 +14,9 @@
     - name: Load openshift facts
       openshift_facts:
         role: common
+    - name: lololololololo
+      debug:
+        msg: "{{ docker_dev }}"
   roles:
     - "{{ playbook_dir }}/openshift/roles/prerequisites"
     - "openshift-contrib/roles/docker-storage-setup"
@@ -23,6 +26,20 @@
         state: started
         enabled: yes
         name: docker
+
+    - name: Set local registry fack
+      set_fact:
+        openshift_docker_insecure_registries: "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['gateway'] }}:8585"
+
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Start local registry
+      shell: |
+        "{{ playbook_dir }}/setup-local-registry.sh" \
+          --ip "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['gateway'] }}" \
+          --port 8585 \
+          -c "{{ playbook_dir }}/containers.txt"
 
 - import_playbook: "{{ openshift_ansible_dir }}/playbooks/byo/config.yml"
 
