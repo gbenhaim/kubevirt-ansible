@@ -16,6 +16,7 @@ import (
 )
 
 type Result struct {
+	cmd           string
 	verb          string
 	resourceType  string
 	resourceName  string
@@ -25,14 +26,15 @@ type Result struct {
 	query         string
 	expectOut     string
 	actualOut     string
+	params        []string
 }
 
 var KubeVirtOcPath = ""
 
 const (
-	CDI_LABEL_KEY          = "app"
-	CDI_LABEL_VALUE        = "containerized-data-importer"
-	CDI_LABEL_SELECTOR     = CDI_LABEL_KEY + "=" + CDI_LABEL_VALUE
+	CDI_LABEL_KEY        = "app"
+	CDI_LABEL_VALUE      = "containerized-data-importer"
+	CDI_LABEL_SELECTOR   = CDI_LABEL_KEY + "=" + CDI_LABEL_VALUE
 	NamespaceTestDefault = "kubevirt-test-default"
 	paramFlag            = "-p"
 )
@@ -79,13 +81,7 @@ func RemoveNamespaces() {
 
 func ProcessTemplateWithParameters(srcFilePath, dstFilePath string, params ...string) string {
 	By(fmt.Sprintf("Overriding the template from %s to %s", srcFilePath, dstFilePath))
-	args := []string{"process", "-f", srcFilePath}
-	for _, v := range params {
-		args = append(args, paramFlag)
-		args = append(args, v)
-	}
-	out, err := ktests.RunOcCommand(args...)
-	Expect(err).ToNot(HaveOccurred())
+	out := execute(Result{cmd: "oc", verb: "process", filePath: srcFilePath, params: params})
 	filePath, err := writeJson(dstFilePath, out)
 	Expect(err).ToNot(HaveOccurred())
 	return filePath
@@ -93,25 +89,25 @@ func ProcessTemplateWithParameters(srcFilePath, dstFilePath string, params ...st
 
 func CreateResourceWithFilePathTestNamespace(filePath string) {
 	By("Creating resource from the json file with the oc-create command")
-	exec(Result{verb: "create", filePath: filePath, nameSpace: NamespaceTestDefault})
+	execute(Result{cmd: "oc", verb: "create", filePath: filePath, nameSpace: NamespaceTestDefault})
 }
 
 func DeleteResourceWithLabelTestNamespace(resourceType, resourceLabel string) {
 	By(fmt.Sprintf("Deleting %s:%s from the json file with the oc-delete command", resourceType, resourceLabel))
-	exec(Result{verb: "delete", resourceType: resourceType, resourceLabel: resourceLabel, nameSpace: NamespaceTestDefault})
+	execute(Result{cmd: "oc", verb: "delete", resourceType: resourceType, resourceLabel: resourceLabel, nameSpace: NamespaceTestDefault})
 }
 
 func WaitUntilResourceReadyByNameTestNamespace(resourceType, resourceName, query, expectOut string) {
 	By(fmt.Sprintf("Wait until %s with name %s ready", resourceType, resourceName))
-	exec(Result{verb: "get", resourceType: resourceType, resourceName: resourceName, query: query, expectOut: expectOut, nameSpace: NamespaceTestDefault})
+	execute(Result{cmd: "oc", verb: "get", resourceType: resourceType, resourceName: resourceName, query: query, expectOut: expectOut, nameSpace: NamespaceTestDefault})
 }
 
 func WaitUntilResourceReadyByLabelTestNamespace(resourceType, label, query, expectOut string) {
-	By(fmt.Sprintf("Wait until resource %s with label=%s ready",resourceType, label))
-	exec(Result{verb: "get", resourceType: resourceType, resourceLabel: label, query: query, expectOut: expectOut, nameSpace: NamespaceTestDefault})
+	By(fmt.Sprintf("Wait until resource %s with label=%s ready", resourceType, label))
+	execute(Result{cmd: "oc", verb: "get", resourceType: resourceType, resourceLabel: label, query: query, expectOut: expectOut, nameSpace: NamespaceTestDefault})
 }
 
-func exec(r Result) {
+func execute(r Result) string {
 	var err error
 	if r.verb == "" {
 		Expect(fmt.Errorf("verb can not be empty"))
@@ -138,17 +134,22 @@ func exec(r Result) {
 	if r.nameSpace != "" {
 		cmd = append(cmd, "-n", r.nameSpace)
 	}
-
+	if len(r.params) > 0 {
+		for _, v := range r.params {
+			cmd = append(cmd, paramFlag, v)
+		}
+	}
 	if r.expectOut != "" {
 		Eventually(func() bool {
-			r.actualOut, err = ktests.RunOcCommand(cmd...)
+			r.actualOut, err = ktests.RunCommand(r.cmd, cmd...)
 			Expect(err).ToNot(HaveOccurred())
 			return strings.Contains(r.actualOut, r.expectOut)
 		}, time.Duration(2)*time.Minute).Should(BeTrue(), fmt.Sprintf("Timed out waiting for %s to appear", r.resourceType))
 	} else {
-		r.actualOut, err = ktests.RunOcCommand(cmd...)
+		r.actualOut, err = ktests.RunCommand(r.cmd, cmd...)
 		Expect(err).ToNot(HaveOccurred())
 	}
+	return r.actualOut
 }
 
 func writeJson(jsonFile string, json string) (string, error) {
