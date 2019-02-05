@@ -117,7 +117,7 @@
   shell: "{{ cluster_command }} -n {{ network_namespace }} get daemonset | grep {{ sriovdp_provisioner_name }} | awk \'{ if ($3 == $4) print \"0\"; else print \"1\"}\'"
   register: result
   until: result.stdout == "0"
-  retries: 24
+  retries: 60
   delay: 10
   when: deploy_sriov_plugin
 
