@@ -221,6 +221,7 @@ run() {
         make build-tests &> "${ARTIFACTS_PATH}/generate-tests.log" &
     readonly MAKE_TESTS_PID="$!"
 
+    set +e
     ansible-playbook \
         -u root \
         -i "$inventory_file" \
@@ -228,6 +229,8 @@ run() {
         -e@vars/all.yml \
         -e "${args[*]}" \
         playbooks/automation/check-patch.yml
+
+    sleep inf
 
     # TODO:(SchSeba) Remove this.
     # Try to sleep before running the integration tests
